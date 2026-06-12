@@ -1,0 +1,66 @@
+"""
+Agent 工具定义
+
+定义 Vision Agent 可调用的工具函数，使用 @tool 装饰器注册到 LangChain 工具系统。
+"""
+
+from langchain_core.tools import tool
+
+
+@tool
+def analyze_scene_description(description: str) -> str:
+    """
+    分析场景描述中包含的对象和关键信息。
+
+    例如：描述中有"一个红色的苹果在桌子上"，
+    返回："物体: 苹果(红色), 桌子; 关系: 苹果在桌子上"
+
+    Args:
+        description: 场景描述文本
+
+    Returns:
+        结构化的场景分析结果
+    """
+    # 实际实现中将调用 DeepSeek 进行结构化分析
+    # 当前为桩函数，真实场景下交由 vision_node 中的 LLM 处理
+    return f"场景分析完成: {description}"
+
+
+@tool
+def search_knowledge(query: str) -> str:
+    """
+    搜索知识库获取相关信息，用于回答用户的问题。
+
+    Args:
+        query: 搜索查询语句
+
+    Returns:
+        搜索结果文本
+    """
+    # TODO: 集成知识库或搜索引擎
+    return f"知识库搜索: '{query}' 的结果将在后续实现"
+
+
+@tool
+def format_response(text: str, style: str = "conversational") -> str:
+    """
+    格式化输出文本，支持不同风格。
+
+    Args:
+        text: 原始文本
+        style: 风格选项 (conversational / professional / concise)
+
+    Returns:
+        格式化后的文本
+    """
+    if style == "concise":
+        return text[:200] + "..." if len(text) > 200 else text
+    return text
+
+
+# 工具列表，供 Agent 注册使用
+VISION_AGENT_TOOLS = [
+    analyze_scene_description,
+    search_knowledge,
+    format_response,
+]
