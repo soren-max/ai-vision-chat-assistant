@@ -13,6 +13,7 @@
   "dependencies": {
     "@types/react-syntax-highlighter": "^15.5.13",
     "@xyflow/react": "^12.11.0",
+    "framer-motion": "^12.40.0",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "react-markdown": "^10.1.0",

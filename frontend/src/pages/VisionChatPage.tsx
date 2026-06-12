@@ -12,6 +12,8 @@ import ChatPanel from '../components/ChatPanel';
 import AgentDashboard from '../components/AgentDashboard';
 import CostDashboard from '../components/CostDashboard';
 import AgentFlowPanel from '../components/AgentFlowPanel';
+import VoiceInteraction from '../components/VoiceInteraction';
+import type { VoiceState } from '../components/VoiceInteraction';
 import type { NodeStatus } from '../components/AgentFlowPanel';
 
 type RightTab = 'agent' | 'cost';
@@ -44,8 +46,24 @@ function useDemoFlow() {
   return { active, statuses };
 }
 
+function useDemoVoice() {
+  const [voice, setVoice] = useState<VoiceState>('idle');
+  useEffect(() => {
+    const states: VoiceState[] = ['idle', 'listening', 'thinking', 'speaking'];
+    let i = 0;
+    const timer = setInterval(() => {
+      i = (i + 1) % states.length;
+      setVoice(states[i]);
+      if (i === 0) setTimeout(() => setVoice('idle'), 4000);
+    }, 5000);
+    return () => clearInterval(timer);
+  }, []);
+  return voice;
+}
+
 function VisionChatPage() {
   const { active, statuses } = useDemoFlow();
+  const voiceState = useDemoVoice();
   const [rightTab, setRightTab] = useState<RightTab>('agent');
 
   return (
@@ -63,9 +81,12 @@ function VisionChatPage() {
               <span className="text-[10px] font-semibold text-gray-500 uppercase tracking-widest">Workflow</span>
               <span className="text-[9px] font-mono text-gray-600">step {active + 1}/7</span>
             </div>
-            <div className="flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-accent-green animate-pulse" />
-              <span className="text-[9px] font-mono text-gray-500">live</span>
+            <div className="flex items-center gap-3">
+              <VoiceInteraction state={voiceState} compact />
+              <div className="flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-accent-green animate-pulse" />
+                <span className="text-[9px] font-mono text-gray-500">live</span>
+              </div>
             </div>
           </div>
           <AgentFlowPanel activeNode={active} nodeStatuses={statuses} className="h-[calc(100%-33px)]" />
