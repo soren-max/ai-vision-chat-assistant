@@ -89,7 +89,7 @@ async def app_info():
 
 # ========== 注册业务路由 ==========
 
-from app.routers import chat, stt, vision, multimodal, tts, optimize, code_assistant
+from app.routers import chat, stt, vision, multimodal, tts, optimize, code_assistant, watch
 
 app.include_router(chat.router)
 app.include_router(stt.router)
@@ -98,3 +98,4 @@ app.include_router(multimodal.router)
 app.include_router(tts.router)
 app.include_router(optimize.router)
 app.include_router(code_assistant.router)
+app.include_router(watch.router)
