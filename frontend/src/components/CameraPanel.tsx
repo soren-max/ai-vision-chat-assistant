@@ -39,7 +39,7 @@ type DetectedObjects = Record<string, DetectedObject>;
 // Mock Detection Data (simulates vision analysis results)
 // ============================================================
 
-const MOCK_SCENES: DetectedObjects[] = [
+export const MOCK_SCENES: DetectedObjects[] = [
   // Scene 1: Office Desk
   {
     laptop:    { id:'laptop',    label:'Laptop',       confidence:0.97, x:0.30, y:0.35, w:0.40, h:0.30, color:'#3b82f6', status:'stable' },

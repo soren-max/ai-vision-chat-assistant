@@ -287,11 +287,14 @@ function MessageBubble({ message }: { message: Message }) {
 // Main Component
 // ============================================================
 
+interface DetObj { id: string; label: string; confidence: number }
+
 interface ChatPanelProps {
-  externalMessage?: { role: MessageRole; content: string; toolName?: string; thinkingLabel?: string } | null;
+  externalMessage?: { role: MessageRole; content: string } | null;
+  detectedObjects?: Record<string, DetObj>;
 }
 
-function ChatPanel({ externalMessage }: ChatPanelProps = {}) {
+function ChatPanel({ externalMessage, detectedObjects }: ChatPanelProps = {}) {
   const [messages, setMessages] = useState<Message[]>(DEMO_MESSAGES);
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
@@ -327,11 +330,15 @@ function ChatPanel({ externalMessage }: ChatPanelProps = {}) {
         }]);
       }, 600);
 
+      const objs = detectedObjects ? Object.values(detectedObjects) : [];
+      const objNames = objs.map(o => o.label).join(', ');
+      const objListStr = objs.map(o => `- **${o.label}** — ${Math.round(o.confidence*100)}%`).join('\n');
+
       setTimeout(() => {
         setMessages(p => [...p, {
           id: `tool-${Date.now()}`,
           role: 'tool_call',
-          content: `vision_analysis()\n→ objects: laptop(97%) coffee_cup(89%) keyboard(94%)`,
+          content: `vision_analysis()\n→ objects: ${objNames}\n→ count: ${objs.length}`,
           toolName: 'vision_analysis',
           toolLatency: 280,
           timestamp: Date.now(),
@@ -340,17 +347,13 @@ function ChatPanel({ externalMessage }: ChatPanelProps = {}) {
 
       setTimeout(() => {
         setIsTyping(false);
+        const response = objs.length > 0
+          ? `Here's what I see:\n\n${objListStr}`
+          : `Camera active — no objects detected yet.`;
         setMessages(p => [...p, {
           id: `ai-${Date.now()}`,
           role: 'assistant',
-          content:
-`I can see your desk has:
-
-- **Laptop** (97%) — center
-- **Coffee Cup** (89%) — right
-- **Keyboard** (94%) — front
-
-Let me know if you want details on any object!`,
+          content: response,
           timestamp: Date.now(),
         }]);
       }, 2500);
@@ -382,11 +385,17 @@ Let me know if you want details on any object!`,
       }]);
     }, 800);
 
+    // Build response from actual detected objects
+    const objs = detectedObjects ? Object.values(detectedObjects) : [];
+    const objListStr = objs.map(o => `- **${o.label}** (${Math.round(o.confidence*100)}%)`).join('\n');
+    const objNames = objs.map(o => o.label).join(', ');
+    const jsonStr = JSON.stringify({ objects: objs.map(o => o.label) });
+
     setTimeout(() => {
       setMessages(p => [...p, {
         id: `tool-${Date.now()}`,
         role: 'tool_call',
-        content: `vision_analysis()\n→ objects: laptop(97%) coffee_cup(89%) keyboard(94%) phone(82%)\n→ scene_type: office\n→ lighting: warm_indoor`,
+        content: `vision_analysis()\n→ objects: ${objNames}\n→ count: ${objs.length}`,
         toolName: 'vision_analysis',
         toolLatency: 312,
         timestamp: Date.now(),
@@ -395,22 +404,13 @@ Let me know if you want details on any object!`,
 
     setTimeout(() => {
       setIsTyping(false);
+      const response = objs.length > 0
+        ? `I can see:\n\n${objListStr}\n\n\`\`\`json\n${jsonStr}\n\`\`\`\n\nAsk me about any of these!`
+        : `Camera is active but no objects detected yet. Try pointing at something!`;
       setMessages(p => [...p, {
         id: `ai-${Date.now()}`,
         role: 'assistant',
-        content:
-`I can see your workspace. Here's what I detected:
-
-- **Laptop** — center, 97% confidence
-- **Coffee Cup** — right side, 89%
-- **Keyboard** — front, 94%
-- **Phone** — right corner, 82%
-
-\`\`\`json
-{"scene":"office","objects":["laptop","cup","keyboard","phone"],"people":0}
-\`\`\`
-
-Ask me anything about what I see!`,
+        content: response,
         timestamp: Date.now(),
       }]);
     }, 2500);

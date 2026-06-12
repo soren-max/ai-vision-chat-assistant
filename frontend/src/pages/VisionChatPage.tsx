@@ -9,7 +9,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
-import CameraPanel from '../components/CameraPanel';
+import CameraPanel, { MOCK_SCENES } from '../components/CameraPanel';
 import VoiceRecorder from '../components/VoiceRecorder';
 import ChatPanel from '../components/ChatPanel';
 import AgentDashboard from '../components/AgentDashboard';
@@ -66,6 +66,15 @@ function VisionChatPage() {
   const { active, statuses } = useDemoFlow();
   const voiceState = useDemoVoice();
   const [rightTab, setRightTab] = useState<RightTab>('agent');
+  const [sceneIdx, setSceneIdx] = useState(0);
+
+  // Cycle detected objects for demo (syncs with CameraPanel's cycle)
+  useEffect(() => {
+    const t = setInterval(() => setSceneIdx(i => (i + 1) % MOCK_SCENES.length), 4000);
+    return () => clearInterval(t);
+  }, []);
+
+  const detectedObjects = MOCK_SCENES[sceneIdx];
 
   // Bridge: VoiceRecorder → ChatPanel
   const [voiceMessage, setVoiceMessage] = useState<{
@@ -113,7 +122,7 @@ function VisionChatPage() {
           <AgentFlowPanel activeNode={active} nodeStatuses={statuses} className="h-[calc(100%-33px)]" />
         </div>
         <div className="flex-1 min-h-0">
-          <ChatPanel externalMessage={voiceMessage} />
+          <ChatPanel externalMessage={voiceMessage} detectedObjects={detectedObjects} />
         </div>
       </main>
 
