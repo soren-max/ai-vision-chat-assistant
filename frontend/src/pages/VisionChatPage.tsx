@@ -1,13 +1,16 @@
 /**
  * VisionChatPage — 三栏 + Flow 布局
  *
- *  Left  (280px): CameraPanel
+ *  Left  (280px): CameraPanel + VoiceRecorder
  *  Center (flex-1): AgentFlowPanel + ChatPanel
  *  Right  (340px): AgentDashboard / CostDashboard (Tab 切换)
+ *
+ *  Wire: VoiceRecorder → ChatPanel (录制停止后文字出现在对话框)
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import CameraPanel from '../components/CameraPanel';
+import VoiceRecorder from '../components/VoiceRecorder';
 import ChatPanel from '../components/ChatPanel';
 import AgentDashboard from '../components/AgentDashboard';
 import CostDashboard from '../components/CostDashboard';
@@ -21,7 +24,6 @@ type RightTab = 'agent' | 'cost';
 function useDemoFlow() {
   const [active, setActive] = useState(-1);
   const [statuses, setStatuses] = useState<NodeStatus[]>(Array(7).fill('idle'));
-
   useEffect(() => {
     let step = 0;
     const total = 7;
@@ -42,7 +44,6 @@ function useDemoFlow() {
     }, 1200);
     return () => clearInterval(interval);
   }, []);
-
   return { active, statuses };
 }
 
@@ -66,11 +67,31 @@ function VisionChatPage() {
   const voiceState = useDemoVoice();
   const [rightTab, setRightTab] = useState<RightTab>('agent');
 
+  // Bridge: VoiceRecorder → ChatPanel
+  const [voiceMessage, setVoiceMessage] = useState<{
+    role: 'user'; content: string;
+  } | null>(null);
+  const [voiceMsgCounter, setVoiceMsgCounter] = useState(0);
+
+  const onVoiceRecorded = useCallback(() => {
+    // Simulate STT result when recording stops
+    const simulatedTexts = [
+      'What objects are on my desk?',
+      'Is there anyone in the room?',
+      'What do you see?',
+      'Describe the scene',
+    ];
+    const text = simulatedTexts[voiceMsgCounter % simulatedTexts.length];
+    setVoiceMessage({ role: 'user', content: text });
+    setVoiceMsgCounter(c => c + 1);
+  }, [voiceMsgCounter]);
+
   return (
     <div className="flex-1 flex overflow-hidden">
       {/* ===== LEFT ===== */}
       <aside className="w-[280px] shrink-0 border-r border-surface-border flex flex-col bg-surface overflow-y-auto">
         <CameraPanel />
+        <VoiceRecorderWrapper onRecorded={onVoiceRecorded} />
       </aside>
 
       {/* ===== CENTER ===== */}
@@ -91,12 +112,13 @@ function VisionChatPage() {
           </div>
           <AgentFlowPanel activeNode={active} nodeStatuses={statuses} className="h-[calc(100%-33px)]" />
         </div>
-        <div className="flex-1 min-h-0"><ChatPanel /></div>
+        <div className="flex-1 min-h-0">
+          <ChatPanel externalMessage={voiceMessage} />
+        </div>
       </main>
 
       {/* ===== RIGHT: Tabs ===== */}
       <aside className="w-[340px] shrink-0 border-l border-surface-border flex flex-col bg-surface overflow-y-auto">
-        {/* Tab bar */}
         <div className="flex shrink-0 border-b border-surface-border bg-surface-raised/50">
           {([
             { id: 'agent', label: 'Agent' },
@@ -114,9 +136,17 @@ function VisionChatPage() {
             </button>
           ))}
         </div>
-        {/* Tab content */}
         {rightTab === 'agent' ? <AgentDashboard /> : <CostDashboard />}
       </aside>
+    </div>
+  );
+}
+
+/** Wrapper: triggers onRecorded when VoiceRecorder stops */
+function VoiceRecorderWrapper({ onRecorded }: { onRecorded: () => void }) {
+  return (
+    <div onClick={() => { setTimeout(onRecorded, 500); }}>
+      <VoiceRecorder />
     </div>
   );
 }

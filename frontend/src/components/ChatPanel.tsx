@@ -328,7 +328,11 @@ function MessageBubble({ message }: { message: Message }) {
 // Main Component
 // ============================================================
 
-function ChatPanel() {
+interface ChatPanelProps {
+  externalMessage?: { role: MessageRole; content: string; toolName?: string; thinkingLabel?: string } | null;
+}
+
+function ChatPanel({ externalMessage }: ChatPanelProps = {}) {
   const [messages, setMessages] = useState<Message[]>(DEMO_MESSAGES);
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
@@ -337,6 +341,34 @@ function ChatPanel() {
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
   }, [messages, isTyping]);
+
+  // Handle external messages (from VoiceRecorder)
+  useEffect(() => {
+    if (!externalMessage) return;
+    const msg: Message = {
+      id: `ext-${Date.now()}`,
+      role: externalMessage.role,
+      content: externalMessage.content,
+      timestamp: Date.now(),
+      toolName: externalMessage.toolName,
+      thinkingLabel: externalMessage.thinkingLabel,
+    };
+    setMessages(p => [...p, msg]);
+
+    // Simulate AI response after voice input
+    if (externalMessage.role === 'user') {
+      setIsTyping(true);
+      setTimeout(() => {
+        setIsTyping(false);
+        setMessages(p => [...p, {
+          id: `ai-${Date.now()}`,
+          role: 'assistant',
+          content: `I heard you say: "${externalMessage.content}"\n\nBased on what I can see in the camera, I can help with that. Let me analyze the scene and provide a detailed response.`,
+          timestamp: Date.now(),
+        }]);
+      }, 2000);
+    }
+  }, [externalMessage]);
 
   const send = useCallback(() => {
     const text = input.trim();
