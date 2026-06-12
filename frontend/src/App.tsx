@@ -1,40 +1,47 @@
 /**
  * App Shell — ChatGPT-style Vision Agent
- *
- * Layout:
- *   Top:   Minimal Header
- *   Center: Chat Area (70%+)
- *   Bottom: Voice Input Bar
- *   Right-Top: Camera Preview (320x240)
- *   Right: Vision Drawer (collapsible)
- *   Right: Agent Drawer (collapsible)
  */
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import ChatWindow from './components/ChatWindow';
-import VoiceBar from './components/VoiceBar';
+import ChatInput from './components/ChatInput';
 import CameraPreview from './components/CameraPreview';
 import VisionDrawer from './components/VisionDrawer';
 import AgentDrawer from './components/AgentDrawer';
+import { MOCK_SCENES } from './components/CameraPanel';
 import type { Message } from './types/chat';
 
-function App() {
+export default function App() {
   const [messages, setMessages] = useState<Message[]>([{
     id: 'welcome',
     role: 'assistant',
-    content: '👋 你好！我是 Vision Agent。打开摄像头后，我可以看到你的画面并回答你的问题。点击下方的麦克风按钮开始语音对话。',
+    content: '👋 你好！我是 Vision Agent。打开摄像头后，我可以看到你的画面并回答你的问题。',
     timestamp: Date.now(),
   }]);
   const [visionOpen, setVisionOpen] = useState(false);
   const [agentOpen, setAgentOpen] = useState(false);
+  const [sceneIdx, setSceneIdx] = useState(0);
+
+  // Cycle mock scenes
+  useEffect(() => {
+    const t = setInterval(() => setSceneIdx(i => (i + 1) % MOCK_SCENES.length), 4000);
+    return () => clearInterval(t);
+  }, []);
 
   const addMessage = useCallback((msg: Message) => {
     setMessages(prev => [...prev, msg]);
   }, []);
 
+  // Build vision data from current scene
+  const currentScene = MOCK_SCENES[sceneIdx] || {};
+  const visionData = {
+    objects: Object.values(currentScene).map(o => `${o.label}(${Math.round(o.confidence*100)}%)`),
+    scene: 'office',
+    timestamp: Date.now(),
+  };
+
   return (
     <div className="h-screen flex flex-col bg-white dark:bg-[#0f172a] text-gray-900 dark:text-gray-100 overflow-hidden">
-      {/* === Header === */}
       <header className="h-12 flex items-center justify-between px-5 border-b border-gray-200 dark:border-gray-800 shrink-0 bg-white dark:bg-[#0f172a]">
         <div className="flex items-center gap-2.5">
           <div className="w-7 h-7 rounded-lg bg-blue-500 flex items-center justify-center">
@@ -47,25 +54,17 @@ function App() {
         </div>
         <div className="flex items-center gap-1">
           <button onClick={() => setVisionOpen(!visionOpen)}
-            className={`px-3 py-1 text-xs rounded-md transition-colors ${visionOpen ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600' : 'hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500'}`}>
-            Vision
-          </button>
+            className={`px-3 py-1 text-xs rounded-md transition-colors ${visionOpen ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600' : 'hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500'}`}>Vision</button>
           <button onClick={() => setAgentOpen(!agentOpen)}
-            className={`px-3 py-1 text-xs rounded-md transition-colors ${agentOpen ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600' : 'hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500'}`}>
-            Agent
-          </button>
+            className={`px-3 py-1 text-xs rounded-md transition-colors ${agentOpen ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600' : 'hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500'}`}>Agent</button>
         </div>
       </header>
 
-      {/* === Main Content === */}
       <div className="flex-1 flex overflow-hidden relative">
-        {/* Chat Area */}
         <div className="flex-1 flex flex-col min-w-0">
           <ChatWindow messages={messages} />
-          <VoiceBar onMessage={addMessage} />
+          <ChatInput onMessage={addMessage} visionData={visionData} />
         </div>
-
-        {/* Right Sidebar */}
         {(visionOpen || agentOpen) && (
           <aside className="w-80 shrink-0 border-l border-gray-200 dark:border-gray-800 overflow-y-auto bg-gray-50 dark:bg-[#1e293b]">
             {visionOpen && <VisionDrawer />}
@@ -74,12 +73,9 @@ function App() {
         )}
       </div>
 
-      {/* Camera Preview (top-right corner) */}
       <div className="fixed top-14 right-5 z-40">
         <CameraPreview />
       </div>
     </div>
   );
 }
-
-export default App;
