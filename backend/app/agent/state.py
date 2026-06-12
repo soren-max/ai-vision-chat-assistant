@@ -12,13 +12,16 @@ class AgentState(TypedDict):
     Vision Agent 的状态类型。
 
     属性说明:
-        user_input:     用户输入的文本（语音转写结果或文字输入）
-        vision_context: 当前摄像头画面的场景描述文本
-        scene_memory:   历史场景描述列表，用于维持视觉上下文连续性
-        tool_result:    工具调用的结果（如搜索、计算等）
-        final_response: Agent 生成的最终回复文本
-        session_id:     会话唯一标识
+        user_input:      用户输入的文本（语音转写结果或文字输入）
+        vision_context:  当前摄像头画面的场景描述文本
+        scene_memory:    历史场景描述列表，用于维持视觉上下文连续性
+        tool_result:     工具调用的结果（如搜索、计算等）
+        final_response:  Agent 生成的最终回复文本
+        session_id:      会话唯一标识
         agent_scratchpad: Agent 内部推理过程的临时记录
+        _next_step:      内部路由标记 (vision / tool / direct_reason)
+        _tool_name:      planner 指定的工具名称
+        _plan_json:      planner Structured Output 的完整 JSON
     """
 
     user_input: str
@@ -28,3 +31,6 @@ class AgentState(TypedDict):
     final_response: str
     session_id: str
     agent_scratchpad: List[str]
+    _next_step: str
+    _tool_name: str
+    _plan_json: dict

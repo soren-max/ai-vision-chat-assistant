@@ -152,57 +152,196 @@ def memory_node(state: AgentState) -> Dict[str, Any]:
 
 
 # ============================================================
-# 3. planner_node — 行为规划
+# Planner 结构化输出 Schema
+# ============================================================
+
+PLANNER_SYSTEM_PROMPT = """你是一个智能规划器。分析用户输入，用 JSON 决定下一步行动。
+
+行动类型:
+- need_vision: 用户问题需要查看摄像头画面才能回答（看/识别/这是什么/描述场景/有什么/在哪里）
+- need_tool: 用户问题需要调用外部工具（时间/搜索/计算/翻译/天气）
+- 两者均为 false: 可以直接用常识回答
+
+可用工具:
+- get_time: 获取当前时间（"几点了"/"现在几点"/"当前时间"）
+- search_web: 联网搜索（"搜索XX"/"查一下XX"/"最新XX"）
+- search_knowledge: 知识库查询（"什么是XX"/"XX的定义"）
+- format_response: 格式化输出
+
+输出格式（严格 JSON，不含 markdown）:
+{"need_vision": false, "need_tool": true, "tool_name": "get_time", "reasoning": "用户问时间，需要调用 get_time 工具"}
+
+示例:
+Q: "现在几点了"
+A: {"need_vision": false, "need_tool": true, "tool_name": "get_time", "reasoning": "用户询问时间"}
+
+Q: "桌上有什么"
+A: {"need_vision": true, "need_tool": false, "tool_name": null, "reasoning": "需要查看桌面画面"}
+
+Q: "你好"
+A: {"need_vision": false, "need_tool": false, "tool_name": null, "reasoning": "日常问候，直接回答"}
+
+Q: "搜索Python教程"
+A: {"need_vision": false, "need_tool": true, "tool_name": "search_web", "reasoning": "需要联网搜索"}
+
+Q: "我手里拿的是什么"
+A: {"need_vision": true, "need_tool": false, "tool_name": null, "reasoning": "需要摄像头识别手中物体"}
+"""
+
+
+def _parse_planner_json(raw: str) -> dict:
+    """从 LLM 返回中安全提取 JSON"""
+    # 移除 markdown 代码块
+    raw = raw.strip()
+    for prefix in ("```json", "```"):
+        if raw.startswith(prefix):
+            raw = raw[len(prefix):].strip()
+    if raw.endswith("```"):
+        raw = raw[:-3].strip()
+
+    try:
+        return json.loads(raw)
+    except json.JSONDecodeError:
+        # 尝试提取第一个 { ... } 块
+        import re
+        m = re.search(r"\{[\s\S]*\}", raw)
+        if m:
+            return json.loads(m.group(0))
+        raise
+
+
+# ============================================================
+# 3. planner_node — Structured Output 智能规划（亮点功能）
 # ============================================================
 
 def planner_node(state: AgentState) -> Dict[str, Any]:
     """
-    【规划节点】分析用户输入，决定下一步执行路径。
+    【规划节点】使用 Structured Output 决定执行路径。
 
-    根据用户输入的特征，判断需要:
-    - "vision" → 进入视觉节点分析画面
-    - "tool"   → 调用外部工具
-    - "direct_reason" → 直接进入推理节点
+    调用 DeepSeek-V4-Pro 分析用户输入，输出严格 JSON:
+    {
+      "need_vision": bool,   # 是否需要视觉分析
+      "need_tool": bool,     # 是否需要调用工具
+      "tool_name": "get_time" | null,  # 工具名称
+      "reasoning": "..."     # 决策理由
+    }
+
+    路由规则:
+    - need_vision=true → "vision"
+    - need_tool=true   → "tool" (携带 tool_name)
+    - 两者 false       → "direct_reason"
 
     输入依赖: state["user_input"]
-    输出字段: agent_scratchpad（记录规划决策）
+    输出字段: agent_scratchpad, _next_step, _tool_name, _plan_json
     """
-    user_input = state.get("user_input", "").strip().lower()
+    user_input = state.get("user_input", "").strip()
     scratchpad = state.get("agent_scratchpad", [])
 
-    # 关键词规则判断路由方向
-    vision_keywords = [
-        "看", "看到", "看见", "画面", "摄像头", "场景", "这是什么",
-        "what", "see", "look", "camera", "scene", "vision",
-        "describe", "识别", "检测",
-    ]
-    tool_keywords = [
-        "搜索", "查找", "查询", "计算", "翻译",
-        "search", "find", "look up", "calculate", "translate",
+    # 空输入保护
+    if not user_input:
+        scratchpad.append("[planner] 决策: direct_reason | 原因: 空输入")
+        return {
+            "agent_scratchpad": scratchpad,
+            "_next_step": "direct_reason",
+            "_tool_name": None,
+            "_plan_json": {},
+        }
+
+    # 使用 DeepSeek 进行结构化决策
+    llm = ChatOpenAI(
+        model=settings.DEEPSEEK_MODEL,
+        api_key=settings.DEEPSEEK_API_KEY,
+        base_url=settings.DEEPSEEK_BASE_URL,
+        temperature=0.0,    # 规划需要确定性
+        max_tokens=256,
+    )
+
+    messages = [
+        SystemMessage(content=PLANNER_SYSTEM_PROMPT),
+        HumanMessage(content=f"Q: {user_input}"),
     ]
 
-    # 判断路由方向
-    has_vision_request = any(kw in user_input for kw in vision_keywords)
-    has_tool_request = any(kw in user_input for kw in tool_keywords)
+    try:
+        response = llm.invoke(messages)
+        plan = _parse_planner_json(response.content)
 
-    # 记录规划决策
-    if has_vision_request:
+        need_vision = plan.get("need_vision", False)
+        need_tool = plan.get("need_tool", False)
+        tool_name = plan.get("tool_name") if need_tool else None
+        reasoning = plan.get("reasoning", "")
+
+        # 决定路由
+        if need_vision:
+            decision = "vision"
+        elif need_tool:
+            decision = "tool"
+        else:
+            decision = "direct_reason"
+
+        plan_record = (
+            f"[planner] 决策: {decision} | "
+            f"vision={need_vision} tool={need_tool}"
+        )
+        if tool_name:
+            plan_record += f" tool_name={tool_name}"
+        plan_record += f" | 原因: {reasoning}"
+
+        scratchpad.append(plan_record)
+        print(plan_record)
+
+        return {
+            "agent_scratchpad": scratchpad,
+            "_next_step": decision,
+            "_tool_name": tool_name,
+            "_plan_json": plan,
+        }
+
+    except Exception as e:
+        # 降级：JSON 解析失败时使用关键词规则
+        print(f"[planner] Structured Output 失败，降级关键词规则: {e}")
+        return _planner_fallback(user_input, scratchpad, str(e))
+
+
+def _planner_fallback(user_input: str, scratchpad: list, error: str) -> Dict[str, Any]:
+    """降级关键词规则 — LLM 结构化输出失败时的保底方案"""
+    user_lower = user_input.lower()
+
+    vision_kw = [
+        "看", "看到", "看见", "画面", "摄像头", "场景", "这是什么", "有什么",
+        "what", "see", "look", "camera", "scene", "describe", "识别", "检测",
+    ]
+    tool_kw = {
+        "几点了": "get_time",
+        "时间": "get_time",
+        "搜索": "search_web",
+        "查一下": "search_web",
+        "计算": "search_knowledge",
+        "翻译": "search_knowledge",
+    }
+
+    has_vision = any(kw in user_lower for kw in vision_kw)
+    tool_name = None
+    for kw, tn in tool_kw.items():
+        if kw in user_lower:
+            tool_name = tn
+            break
+
+    if has_vision:
         decision = "vision"
-        reason = "用户请求涉及视觉分析"
-    elif has_tool_request:
+    elif tool_name:
         decision = "tool"
-        reason = "用户请求需要调用工具"
     else:
         decision = "direct_reason"
-        reason = "普通对话，直接进入推理"
 
-    plan_record = f"[planner] 决策: {decision} | 原因: {reason} | 输入: {user_input[:50]}"
-    scratchpad.append(plan_record)
-    print(plan_record)
+    record = f"[planner] 降级决策: {decision} | vision={has_vision} tool={tool_name} | err={error[:50]}"
+    scratchpad.append(record)
+    print(record)
 
     return {
         "agent_scratchpad": scratchpad,
-        "_next_step": decision,  # 内部路由标记，供条件边使用
+        "_next_step": decision,
+        "_tool_name": tool_name,
+        "_plan_json": {"fallback": True, "error": error},
     }
 
 
@@ -212,45 +351,36 @@ def planner_node(state: AgentState) -> Dict[str, Any]:
 
 def tool_node(state: AgentState) -> Dict[str, Any]:
     """
-    【工具节点】执行 Agent 工具调用。
+    【工具节点】执行 planner 指定的工具。
 
-    根据用户输入选择合适的工具并执行，
-    将结果写入 tool_result 字段供后续节点使用。
+    优先使用 planner_node 的 Structured Output 中的 tool_name，
+    直接调用对应工具函数，避免二次 LLM 调用。
 
-    输入依赖: state["user_input"]
+    输入依赖: state["user_input"], state["_tool_name"]
     输出字段: tool_result
     """
+    from app.agent.tools import TOOL_REGISTRY
+
     user_input = state.get("user_input", "")
+    tool_name = state.get("_tool_name", "")
     scratchpad = state.get("agent_scratchpad", [])
 
-    # 使用 DeepSeek 判断调用哪个工具并生成参数
-    llm = ChatOpenAI(
-        model=settings.DEEPSEEK_MODEL,
-        api_key=settings.DEEPSEEK_API_KEY,
-        base_url=settings.DEEPSEEK_BASE_URL,
-        temperature=0.1,
-    )
+    # 优先使用 planner 指定的工具
+    if tool_name and tool_name in TOOL_REGISTRY:
+        tool_fn = TOOL_REGISTRY[tool_name]
+        try:
+            result = tool_fn.invoke({"query": user_input} if tool_name in ("search_web", "search_knowledge") else {})
+            tool_result = str(result)
+            print(f"[tool_node] ✅ {tool_name}: {tool_result[:100]}")
+        except Exception as e:
+            tool_result = f"工具 {tool_name} 执行失败: {e}"
+            print(f"[tool_node] ❌ {e}")
+    else:
+        # 降级：无工具名或工具不存在
+        tool_result = f"无可用工具 (planner 未指定 tool_name)"
+        print(f"[tool_node] ⚠️ 无 tool_name，跳过执行")
 
-    messages = [
-        SystemMessage(content=(
-            "你是一个工具调度器。根据用户输入，决定调用哪个工具。\n"
-            "可用工具:\n"
-            "1. search_knowledge - 搜索知识库获取信息\n"
-            "2. analyze_scene_description - 分析场景描述\n"
-            "3. format_response - 格式化输出\n\n"
-            "请直接输出工具名称和参数，格式: TOOL=工具名 | ARGS=参数"
-        )),
-        HumanMessage(content=user_input),
-    ]
-
-    try:
-        response = llm.invoke(messages)
-        tool_result = response.content
-        print(f"[tool_node] 工具调度结果: {tool_result[:100]}...")
-    except Exception as e:
-        tool_result = f"工具调用失败: {str(e)}"
-
-    scratchpad.append(f"[tool] 结果: {tool_result[:80]}")
+    scratchpad.append(f"[tool] {tool_name}: {tool_result[:80]}")
 
     return {
         "tool_result": tool_result,
@@ -401,16 +531,31 @@ def route_planner(state: AgentState) -> str:
     """
     规划节点的条件路由函数。
 
-    根据 planner_node 设置的路由标记决定下一个节点:
+    根据 planner_node 的 Structured Output 决定下一个节点:
     - "vision" → vision_node
     - "tool"   → tool_node
     - "direct_reason" → reasoning_node
 
     Args:
-        state: 当前 Agent 状态
+        state: 当前 Agent 状态（含 _next_step 和 _plan_json）
 
     Returns:
         下一个节点的名称
     """
     next_step = state.get("_next_step", "direct_reason")
+
+    # 打印路由决策摘要
+    plan = state.get("_plan_json", {})
+    if plan:
+        tool = plan.get("tool_name", "")
+        vision = plan.get("need_vision", False)
+        tool_need = plan.get("need_tool", False)
+        reason = plan.get("reasoning", "")
+        print(
+            f"[route] → {next_step} | "
+            f"vision={vision} tool={tool_need}"
+            + (f" tool_name={tool}" if tool else "")
+            + (f" | {reason}" if reason else "")
+        )
+
     return next_step

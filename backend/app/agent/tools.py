@@ -58,9 +58,49 @@ def format_response(text: str, style: str = "conversational") -> str:
     return text
 
 
+@tool
+def get_time() -> str:
+    """
+    获取当前系统时间。
+
+    用于回答"几点了"、"现在什么时间"等问题。
+
+    Returns:
+        当前时间字符串（含日期和星期）
+    """
+    from datetime import datetime
+    now = datetime.now()
+    weekdays = ["周一", "周二", "周三", "周四", "周五", "周六", "周日"]
+    return (
+        f"{now.year}年{now.month}月{now.day}日 "
+        f"{weekdays[now.weekday()]} "
+        f"{now.hour:02d}:{now.minute:02d}:{now.second:02d}"
+    )
+
+
+@tool
+def search_web(query: str) -> str:
+    """
+    联网搜索获取实时信息，用于回答需要最新数据的问题。
+
+    Args:
+        query: 搜索查询语句
+
+    Returns:
+        搜索结果摘要
+    """
+    # TODO: 接入搜索引擎 API
+    return f"联网搜索 '{query}' 的结果将在后续集成搜索引擎后返回"
+
+
+# 工具注册表 —— 供 planner 和 tool_node 使用
+TOOL_REGISTRY = {
+    "get_time": get_time,
+    "search_web": search_web,
+    "search_knowledge": search_knowledge,
+    "analyze_scene_description": analyze_scene_description,
+    "format_response": format_response,
+}
+
 # 工具列表，供 Agent 注册使用
-VISION_AGENT_TOOLS = [
-    analyze_scene_description,
-    search_knowledge,
-    format_response,
-]
+VISION_AGENT_TOOLS = list(TOOL_REGISTRY.values())
