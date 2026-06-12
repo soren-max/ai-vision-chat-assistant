@@ -240,7 +240,7 @@ class STTService:
         """
         # 构建 API 参数
         kwargs = {
-            "model": settings.STT_MODEL,
+            "model": "whisper-1",
             "file": Path(file_path),
             "language": language,
             "temperature": temperature,
