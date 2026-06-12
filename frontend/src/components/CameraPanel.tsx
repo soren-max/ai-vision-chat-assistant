@@ -42,23 +42,23 @@ type DetectedObjects = Record<string, DetectedObject>;
 const MOCK_SCENES: DetectedObjects[] = [
   // Scene 1: Office Desk
   {
-    laptop:    { id:'laptop',    label:'Laptop',       confidence:0.97, x:0.30, y:0.35, w:0.40, h:0.30, color:'#58a6ff', status:'stable' },
-    cup:       { id:'cup',       label:'Coffee Cup',   confidence:0.89, x:0.72, y:0.55, w:0.12, h:0.15, color:'#3fb950', status:'stable' },
-    keyboard:  { id:'keyboard',  label:'Keyboard',     confidence:0.94, x:0.25, y:0.68, w:0.50, h:0.10, color:'#d29922', status:'stable' },
-    phone:     { id:'phone',     label:'Phone',        confidence:0.82, x:0.80, y:0.40, w:0.08, h:0.14, color:'#a371f7', status:'stable' },
+    laptop:    { id:'laptop',    label:'Laptop',       confidence:0.97, x:0.30, y:0.35, w:0.40, h:0.30, color:'#3b82f6', status:'stable' },
+    cup:       { id:'cup',       label:'Coffee Cup',   confidence:0.89, x:0.72, y:0.55, w:0.12, h:0.15, color:'#22c55e', status:'stable' },
+    keyboard:  { id:'keyboard',  label:'Keyboard',     confidence:0.94, x:0.25, y:0.68, w:0.50, h:0.10, color:'#f59e0b', status:'stable' },
+    phone:     { id:'phone',     label:'Phone',        confidence:0.82, x:0.80, y:0.40, w:0.08, h:0.14, color:'#3b82f6', status:'stable' },
   },
   // Scene 2: More objects
   {
-    monitor:   { id:'monitor',   label:'Monitor',      confidence:0.96, x:0.20, y:0.10, w:0.60, h:0.45, color:'#58a6ff', status:'stable' },
-    mouse:     { id:'mouse',     label:'Mouse',         confidence:0.88, x:0.75, y:0.70, w:0.08, h:0.06, color:'#39d2c0', status:'stable' },
-    notebook:  { id:'notebook',  label:'Notebook',      confidence:0.91, x:0.35, y:0.55, w:0.15, h:0.20, color:'#f85149', status:'new' },
-    water:     { id:'water',     label:'Water Bottle',  confidence:0.79, x:0.10, y:0.72, w:0.06, h:0.12, color:'#3fb950', status:'stable' },
+    monitor:   { id:'monitor',   label:'Monitor',      confidence:0.96, x:0.20, y:0.10, w:0.60, h:0.45, color:'#3b82f6', status:'stable' },
+    mouse:     { id:'mouse',     label:'Mouse',         confidence:0.88, x:0.75, y:0.70, w:0.08, h:0.06, color:'#22c55e', status:'stable' },
+    notebook:  { id:'notebook',  label:'Notebook',      confidence:0.91, x:0.35, y:0.55, w:0.15, h:0.20, color:'#ef4444', status:'new' },
+    water:     { id:'water',     label:'Water Bottle',  confidence:0.79, x:0.10, y:0.72, w:0.06, h:0.12, color:'#22c55e', status:'stable' },
   },
   // Scene 3: Person detected
   {
-    person:    { id:'person',    label:'Person',        confidence:0.95, x:0.35, y:0.05, w:0.25, h:0.70, color:'#f85149', status:'moving' },
-    laptop:    { id:'laptop',    label:'Laptop',        confidence:0.93, x:0.05, y:0.40, w:0.35, h:0.28, color:'#58a6ff', status:'stable' },
-    mug:       { id:'mug',       label:'Mug',           confidence:0.85, x:0.65, y:0.62, w:0.10, h:0.12, color:'#d29922', status:'stable' },
+    person:    { id:'person',    label:'Person',        confidence:0.95, x:0.35, y:0.05, w:0.25, h:0.70, color:'#ef4444', status:'moving' },
+    laptop:    { id:'laptop',    label:'Laptop',        confidence:0.93, x:0.05, y:0.40, w:0.35, h:0.28, color:'#3b82f6', status:'stable' },
+    mug:       { id:'mug',       label:'Mug',           confidence:0.85, x:0.65, y:0.62, w:0.10, h:0.12, color:'#f59e0b', status:'stable' },
   },
 ];
 
@@ -104,7 +104,7 @@ function BoundingBox({ obj }: { obj: DetectedObject }) {
       >
         <span className="font-semibold">{obj.label}</span>
         <span className="opacity-70">{Math.round(obj.confidence * 100)}%</span>
-        {isMoving && <span className="text-accent-red animate-pulse">●</span>}
+        {isMoving && <span className="text-danger animate-pulse">●</span>}
       </div>
     </div>
   );
@@ -233,11 +233,11 @@ function CameraPanel() {
             <>
               <span>{objList.length} det</span>
               <span className="w-px h-3 bg-surface-border" />
-              <span className="text-accent-green">{highConf} high</span>
+              <span className="text-accent">{highConf} high</span>
               {movingCount > 0 && (
                 <>
                   <span className="w-px h-3 bg-surface-border" />
-                  <span className="text-accent-red">{movingCount} mov</span>
+                  <span className="text-danger">{movingCount} mov</span>
                 </>
               )}
             </>
@@ -304,20 +304,20 @@ function CameraPanel() {
         {isStarting && (
           <div className="absolute inset-0 flex items-center justify-center z-20 bg-surface-overlay/50">
             <div className="flex flex-col items-center gap-3">
-              <div className="w-8 h-8 border-2 border-brand-500 border-t-transparent rounded-full animate-spin" />
+              <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
               <span className="text-[10px] font-mono text-gray-500">initializing...</span>
             </div>
           </div>
         )}
 
         {cameraStatus === 'error' && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-accent-red z-20 bg-surface-overlay/50">
+          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-danger z-20 bg-surface-overlay/50">
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
                 d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" />
             </svg>
             <span className="text-[10px] font-mono max-w-[200px] text-center leading-relaxed">{errorMessage || 'camera::error'}</span>
-            <button onClick={startCamera} className="mt-2 px-3 py-1 text-[10px] font-mono rounded-sm bg-accent-red/15 border border-accent-red/30 hover:bg-accent-red/20 transition-colors">
+            <button onClick={startCamera} className="mt-2 px-3 py-1 text-[10px] font-mono rounded-sm bg-danger/15 border border-danger/30 hover:bg-danger/20 transition-colors">
               retry()
             </button>
           </div>
@@ -325,9 +325,9 @@ function CameraPanel() {
 
         {/* REC badge */}
         {isActive && (
-          <div className="absolute top-2 right-2 z-30 flex items-center gap-1.5 px-2 py-0.5 rounded-sm bg-black/60 border border-accent-green/30 backdrop-blur-sm">
-            <span className="w-1.5 h-1.5 rounded-full bg-accent-green animate-pulse" />
-            <span className="text-[9px] font-mono text-accent-green">REC</span>
+          <div className="absolute top-2 right-2 z-30 flex items-center gap-1.5 px-2 py-0.5 rounded-sm bg-black/60 border border-accent/30 backdrop-blur-sm">
+            <span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse" />
+            <span className="text-[9px] font-mono text-accent">REC</span>
           </div>
         )}
       </div>
@@ -339,8 +339,8 @@ function CameraPanel() {
           disabled={isStarting}
           className={`w-full py-1.5 text-[11px] font-mono rounded-sm transition-all duration-200
             ${isActive
-              ? 'bg-accent-red/15 text-accent-red border border-accent-red/30 hover:bg-accent-red/20'
-              : 'bg-brand-600/20 text-brand-400 border border-brand-500/30 hover:bg-brand-600/30'}`}
+              ? 'bg-danger/15 text-danger border border-danger/30 hover:bg-danger/20'
+              : 'bg-primary/20 text-primary-400 border border-primary/30 hover:bg-primary/30'}`}
         >
           {isActive ? 'stop()' : isStarting ? 'initializing...' : 'start()'}
         </button>
@@ -354,13 +354,13 @@ function CameraPanel() {
             {objList.map(obj => (
               <div
                 key={obj.id}
-                className="flex items-center justify-between px-2 py-1.5 rounded-sm bg-surface-overlay/50 border border-surface-border hover:border-brand-500/20 transition-colors"
+                className="flex items-center justify-between px-2 py-1.5 rounded-sm bg-surface-overlay/50 border border-surface-border hover:border-primary/20 transition-colors"
                 style={{ borderLeftWidth: 2, borderLeftColor: obj.color }}
               >
                 <div className="flex items-center gap-2">
                   <span className={`w-1.5 h-1.5 rounded-full ${
-                    obj.status === 'moving' ? 'bg-accent-red animate-pulse' :
-                    obj.status === 'new' ? 'bg-accent-orange' : 'bg-accent-green'
+                    obj.status === 'moving' ? 'bg-danger animate-pulse' :
+                    obj.status === 'new' ? 'bg-warning' : 'bg-accent'
                   }`} />
                   <code className="text-[10px] font-mono text-gray-300">{obj.label}</code>
                 </div>

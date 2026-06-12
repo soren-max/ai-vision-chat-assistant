@@ -26,9 +26,9 @@ const STATE_LABELS: Record<VoiceState, string> = {
 
 const STATE_COLORS: Record<VoiceState, string> = {
   idle: '#6e7681',
-  listening: '#3fb950',
-  thinking: '#a371f7',
-  speaking: '#58a6ff',
+  listening: '#22c55e',
+  thinking: '#3b82f6',
+  speaking: '#3b82f6',
 };
 
 // ============================================================
@@ -86,7 +86,7 @@ function ListeningAnimation() {
         <motion.div
           key={i}
           className="w-[3px] rounded-full"
-          style={{ backgroundColor: '#3fb950' }}
+          style={{ backgroundColor: '#22c55e' }}
           animate={{ height: `${h * 100}%`, opacity: 0.6 + h * 0.4 }}
           transition={{ duration: 0.1, ease: 'easeOut' }}
         />
@@ -113,12 +113,12 @@ function ThinkingAnimation() {
     <div className="relative w-16 h-16 flex items-center justify-center">
       {/* Rotating ring */}
       <motion.div
-        className="absolute inset-0 rounded-full border-2 border-transparent border-t-accent-purple border-r-accent-purple/30"
+        className="absolute inset-0 rounded-full border-2 border-transparent border-t-primary border-r-primary/30"
         animate={{ rotate: 360 }}
         transition={{ duration: 1.5, repeat: Infinity, ease: 'linear' }}
       />
       <motion.div
-        className="absolute inset-2 rounded-full border border-transparent border-b-accent-purple/50 border-l-accent-purple/20"
+        className="absolute inset-2 rounded-full border border-transparent border-b-primary/50 border-l-primary/20"
         animate={{ rotate: -360 }}
         transition={{ duration: 2, repeat: Infinity, ease: 'linear' }}
       />
@@ -126,7 +126,7 @@ function ThinkingAnimation() {
       {particles.map((p) => (
         <motion.div
           key={p.angle}
-          className="absolute w-1.5 h-1.5 rounded-full bg-accent-purple"
+          className="absolute w-1.5 h-1.5 rounded-full bg-primary"
           animate={{
             rotate: [0, 360],
           }}
@@ -140,7 +140,7 @@ function ThinkingAnimation() {
           }}
         >
           <motion.div
-            className="w-full h-full rounded-full bg-accent-purple"
+            className="w-full h-full rounded-full bg-primary"
             animate={{ opacity: [0.3, 1, 0.3], scale: [0.5, 1, 0.5] }}
             transition={{ duration: 1, repeat: Infinity, delay: p.delay }}
           />
@@ -148,7 +148,7 @@ function ThinkingAnimation() {
       ))}
       {/* Core */}
       <motion.div
-        className="w-3 h-3 rounded-full bg-accent-purple"
+        className="w-3 h-3 rounded-full bg-primary"
         animate={{ scale: [0.8, 1.2, 0.8], opacity: [0.6, 1, 0.6] }}
         transition={{ duration: 1, repeat: Infinity }}
       />
@@ -182,7 +182,7 @@ function SpeakingAnimation() {
         {ripples.map((id) => (
           <motion.div
             key={id}
-            className="absolute rounded-full border-2 border-accent-blue"
+            className="absolute rounded-full border-2 border-primary-400"
             initial={{ width: 8, height: 8, opacity: 0.8 }}
             animate={{ width: 64, height: 64, opacity: 0 }}
             exit={{ opacity: 0 }}
@@ -198,7 +198,7 @@ function SpeakingAnimation() {
         transition={{ duration: 0.6, repeat: Infinity }}
       >
         <motion.div
-          className="w-3 h-3 rounded-full bg-accent-blue"
+          className="w-3 h-3 rounded-full bg-primary-400"
           animate={{ opacity: [0.5, 1, 0.5] }}
           transition={{ duration: 0.4, repeat: Infinity }}
         />

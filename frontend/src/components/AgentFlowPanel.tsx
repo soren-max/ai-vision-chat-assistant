@@ -45,9 +45,9 @@ function AgentNode({ data }: NodeProps) {
 
   const statusStyles: Record<NodeStatus, string> = {
     idle:    'border-surface-border bg-surface-overlay text-gray-500',
-    running: 'border-brand-500 bg-brand-600/15 text-brand-400 ring-glow',
-    complete:'border-accent-green/40 bg-accent-green/10 text-accent-green',
-    error:   'border-accent-red/40 bg-accent-red/10 text-accent-red',
+    running: 'border-primary bg-primary/15 text-primary-400 ring-glow',
+    complete:'border-accent/40 bg-accent/10 text-accent',
+    error:   'border-danger/40 bg-danger/10 text-danger',
   };
 
   return (
@@ -63,9 +63,9 @@ function AgentNode({ data }: NodeProps) {
       <div className="flex items-center gap-2">
         <span className={`
           w-2 h-2 rounded-full shrink-0
-          ${status === 'running' ? 'bg-brand-500 animate-pulse' :
-            status === 'complete' ? 'bg-accent-green' :
-            status === 'error' ? 'bg-accent-red animate-pulse' :
+          ${status === 'running' ? 'bg-primary animate-pulse' :
+            status === 'complete' ? 'bg-accent' :
+            status === 'error' ? 'bg-danger animate-pulse' :
             'bg-gray-600'}
         `} />
         <div className="flex-1 min-w-0">
@@ -168,14 +168,14 @@ function AgentFlowPanel({
           ...ed,
           animated: isActive,
           style: {
-            stroke: isPast ? '#3fb950' : isActive ? '#6c5ce7' : '#30363d',
+            stroke: isPast ? '#22c55e' : isActive ? '#3b82f6' : '#30363d',
             strokeWidth: isActive ? 2 : 1.5,
           },
           markerEnd: {
             type: MarkerType.ArrowClosed,
             width: 8,
             height: 8,
-            color: isPast ? '#3fb950' : isActive ? '#6c5ce7' : '#30363d',
+            color: isPast ? '#22c55e' : isActive ? '#3b82f6' : '#30363d',
           },
         };
       }),
@@ -205,9 +205,9 @@ function AgentFlowPanel({
         />
         <MiniMap
           nodeColor={(n) => {
-            if (n.data?.status === 'running') return '#6c5ce7';
-            if (n.data?.status === 'complete') return '#3fb950';
-            if (n.data?.status === 'error') return '#f85149';
+            if (n.data?.status === 'running') return '#3b82f6';
+            if (n.data?.status === 'complete') return '#22c55e';
+            if (n.data?.status === 'error') return '#ef4444';
             return '#30363d';
           }}
           maskColor="rgba(13, 17, 23, 0.7)"

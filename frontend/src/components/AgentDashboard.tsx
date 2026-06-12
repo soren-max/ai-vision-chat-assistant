@@ -62,10 +62,10 @@ const TOKEN_DATA: TokenUsage = {
   total: 1247,
   budget: 2000,
   breakdown: [
-    { label: 'vision', tokens: 320, color: '#a371f7' },
-    { label: 'chat', tokens: 580, color: '#6c5ce7' },
-    { label: 'memory', tokens: 180, color: '#39d2c0' },
-    { label: 'tools', tokens: 120, color: '#58a6ff' },
+    { label: 'vision', tokens: 320, color: '#3b82f6' },
+    { label: 'chat', tokens: 580, color: '#3b82f6' },
+    { label: 'memory', tokens: 180, color: '#22c55e' },
+    { label: 'tools', tokens: 120, color: '#3b82f6' },
     { label: 'other', tokens: 47, color: '#30363d' },
   ],
 };
@@ -103,7 +103,7 @@ function NodeFlowGraph({ activeNode }: { activeNode: string }) {
         return (
           <line key={i}
             x1={x1} y1={y1} x2={x2} y2={y2}
-            stroke={isActive ? '#6c5ce7' : '#30363d'}
+            stroke={isActive ? '#3b82f6' : '#30363d'}
             strokeWidth={isActive ? 1.5 : 1}
             strokeDasharray={to === 'reasoning' ? '3 2' : undefined}
             className="transition-colors duration-500"
@@ -117,12 +117,12 @@ function NodeFlowGraph({ activeNode }: { activeNode: string }) {
         return (
           <g key={id}>
             {isActive && (
-              <circle cx={cx} cy={cy} r={r + 4} fill="none" stroke="#6c5ce7" strokeWidth={1}
+              <circle cx={cx} cy={cy} r={r + 4} fill="none" stroke="#3b82f6" strokeWidth={1}
                 className="animate-pulse" opacity={0.3} />
             )}
             <circle cx={cx} cy={cy} r={r}
-              fill={isActive ? '#6c5ce7' : '#21262d'}
-              stroke={isActive ? '#8b7cf7' : '#30363d'}
+              fill={isActive ? '#3b82f6' : '#21262d'}
+              stroke={isActive ? '#3b82f6' : '#30363d'}
               strokeWidth={1}
               className="transition-all duration-500"
             />
@@ -156,8 +156,8 @@ function TokenRing({ total, budget, breakdown }: TokenUsage) {
           />
           <defs>
             <linearGradient id="tokenGrad" x1="0" y1="0" x2="1" y2="1">
-              <stop offset="0%" stopColor="#6c5ce7" />
-              <stop offset="100%" stopColor="#39d2c0" />
+              <stop offset="0%" stopColor="#3b82f6" />
+              <stop offset="100%" stopColor="#22c55e" />
             </linearGradient>
           </defs>
         </svg>
@@ -225,8 +225,8 @@ function AgentDashboard() {
             <NodeFlowGraph activeNode={ACTIVE_NODE} />
             <div className="flex items-center justify-between mt-2 px-1">
               <div className="flex items-center gap-1.5">
-                <span className="w-2 h-2 rounded-full bg-accent-green animate-pulse" />
-                <code className="text-[11px] font-mono text-accent-green">{ACTIVE_NODE}_node</code>
+                <span className="w-2 h-2 rounded-full bg-accent animate-pulse" />
+                <code className="text-[11px] font-mono text-accent">{ACTIVE_NODE}_node</code>
               </div>
               <span className="text-[9px] font-mono text-gray-600">6 nodes</span>
             </div>
@@ -254,7 +254,7 @@ function AgentDashboard() {
               <span className="text-[9px] font-mono text-gray-600 px-1">objects</span>
               <div className="flex flex-wrap gap-1 mt-1">
                 {MEMORY_DATA.importantObjects.map(obj => (
-                  <span key={obj} className="text-[10px] font-mono px-1.5 py-0.5 rounded-sm bg-brand-600/10 text-brand-400 border border-brand-500/20">
+                  <span key={obj} className="text-[10px] font-mono px-1.5 py-0.5 rounded-sm bg-primary/10 text-primary-400 border border-primary/20">
                     {obj}
                   </span>
                 ))}
@@ -268,8 +268,8 @@ function AgentDashboard() {
                 {MEMORY_DATA.typeHistory.map((t, i) => (
                   <span key={i} className={`text-[9px] font-mono px-1.5 py-0.5 rounded-sm border ${
                     t === 'office'
-                      ? 'bg-accent-cyan/10 text-accent-cyan border-accent-cyan/20'
-                      : 'bg-accent-purple/10 text-accent-purple border-accent-purple/20'
+                      ? 'bg-primary-400/10 text-primary-400 border-primary-400/20'
+                      : 'bg-primary/10 text-primary border-primary/20'
                   }`}>
                     {t}
                   </span>
@@ -297,14 +297,14 @@ function AgentDashboard() {
           <div className="px-3 pb-3 space-y-1">
             {TOOL_HISTORY.map(call => (
               <div key={call.id}
-                className="px-2 py-2 rounded-sm bg-surface-overlay/30 border border-surface-border hover:border-brand-500/20 transition-colors group"
+                className="px-2 py-2 rounded-sm bg-surface-overlay/30 border border-surface-border hover:border-primary/20 transition-colors group"
               >
                 {/* Header row */}
                 <div className="flex items-center justify-between mb-1">
                   <div className="flex items-center gap-1.5">
                     <span className={`w-1.5 h-1.5 rounded-full ${
-                      call.latencyMs < 200 ? 'bg-accent-green' :
-                      call.latencyMs < 400 ? 'bg-accent-orange' : 'bg-accent-red'
+                      call.latencyMs < 200 ? 'bg-accent' :
+                      call.latencyMs < 400 ? 'bg-warning' : 'bg-danger'
                     }`} />
                     <code className="text-[11px] font-mono text-gray-300">{call.name}</code>
                   </div>
@@ -316,7 +316,7 @@ function AgentDashboard() {
                     <code className="text-[9px] font-mono text-gray-600">{call.params}</code>
                   </div>
                   <div className="text-right">
-                    <code className="text-[10px] font-mono text-accent-green">{call.result}</code>
+                    <code className="text-[10px] font-mono text-accent">{call.result}</code>
                   </div>
                 </div>
               </div>
@@ -347,7 +347,7 @@ function AgentDashboard() {
                   className="h-full rounded-full transition-all duration-700"
                   style={{
                     width: `${Math.min(100, (TOKEN_DATA.total / TOKEN_DATA.budget) * 100)}%`,
-                    background: 'linear-gradient(90deg, #6c5ce7, #39d2c0)',
+                    background: 'linear-gradient(90deg, #3b82f6, #22c55e)',
                   }}
                 />
               </div>
@@ -366,9 +366,9 @@ function AgentDashboard() {
       <div className="p-3">
         <div className="grid grid-cols-2 gap-2">
           {[
-            { label: 'cache hit', value: '53%', color: 'text-accent-green' },
-            { label: 'frame skip', value: '82%', color: 'text-accent-green' },
-            { label: 'avg latency', value: '207ms', color: 'text-accent-cyan' },
+            { label: 'cache hit', value: '53%', color: 'text-accent' },
+            { label: 'frame skip', value: '82%', color: 'text-accent' },
+            { label: 'avg latency', value: '207ms', color: 'text-primary-400' },
             { label: 'uptime', value: '24m', color: 'text-gray-400' },
           ].map(stat => (
             <div key={stat.label} className="p-2 rounded-sm bg-surface-overlay/50 border border-surface-border">

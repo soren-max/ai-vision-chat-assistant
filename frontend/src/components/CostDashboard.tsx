@@ -33,12 +33,12 @@ function generateTimeSeries(minutes: number, baseValue: number, variance: number
 // ============================================================
 
 const COLORS = {
-  gpt: '#6c5ce7',
-  vision: '#a371f7',
-  whisper: '#39d2c0',
-  token: '#58a6ff',
-  saved: '#3fb950',
-  cost: '#f85149',
+  gpt: '#3b82f6',
+  vision: '#3b82f6',
+  whisper: '#22c55e',
+  token: '#3b82f6',
+  saved: '#22c55e',
+  cost: '#ef4444',
 };
 
 // ============================================================
@@ -70,7 +70,7 @@ function StatCard({
       </div>
       {delta !== undefined && (
         <div className="flex items-center gap-1.5 mt-2">
-          <span className={`text-[10px] font-mono ${isPositive ? 'text-accent-green' : 'text-accent-red'}`}>
+          <span className={`text-[10px] font-mono ${isPositive ? 'text-accent' : 'text-danger'}`}>
             {isPositive ? '↑' : '↓'} {Math.abs(delta)}%
           </span>
           {deltaLabel && <span className="text-[9px] font-mono text-gray-600">{deltaLabel}</span>}
@@ -130,7 +130,7 @@ function CostDashboard() {
         <div className="flex items-center gap-3">
           <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-widest">Cost Monitor</span>
           <span className="flex items-center gap-1.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-accent-green animate-pulse" />
+            <span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse" />
             <span className="text-[9px] font-mono text-gray-600">live</span>
           </span>
         </div>

@@ -84,7 +84,7 @@ function VisionChatPage() {
             <div className="flex items-center gap-3">
               <VoiceInteraction state={voiceState} compact />
               <div className="flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-accent-green animate-pulse" />
+                <span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse" />
                 <span className="text-[9px] font-mono text-gray-500">live</span>
               </div>
             </div>
@@ -107,7 +107,7 @@ function VisionChatPage() {
               onClick={() => setRightTab(tab.id)}
               className={`flex-1 py-2 text-[10px] font-semibold uppercase tracking-wider transition-colors
                 ${rightTab === tab.id
-                  ? 'text-white border-b-2 border-brand-500 bg-brand-500/5'
+                  ? 'text-white border-b-2 border-primary bg-primary/5'
                   : 'text-gray-600 hover:text-gray-400'}`}
             >
               {tab.label}
