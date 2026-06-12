@@ -155,37 +155,46 @@ def memory_node(state: AgentState) -> Dict[str, Any]:
 # Planner 结构化输出 Schema
 # ============================================================
 
-PLANNER_SYSTEM_PROMPT = """你是一个智能规划器。分析用户输入，用 JSON 决定下一步行动。
+def _build_planner_prompt() -> str:
+    """动态构建包含所有已注册工具的 planner prompt"""
+    from app.agent.tools import tool_registry
+
+    tool_list = tool_registry.get_tool_names_for_prompt()
+
+    return f"""你是一个智能规划器。分析用户输入，用 JSON 决定下一步行动。
 
 行动类型:
 - need_vision: 用户问题需要查看摄像头画面才能回答（看/识别/这是什么/描述场景/有什么/在哪里）
-- need_tool: 用户问题需要调用外部工具（时间/搜索/计算/翻译/天气）
+- need_tool: 用户问题需要调用外部工具（时间/搜索/计算/天气）
 - 两者均为 false: 可以直接用常识回答
 
 可用工具:
-- get_time: 获取当前时间（"几点了"/"现在几点"/"当前时间"）
-- search_web: 联网搜索（"搜索XX"/"查一下XX"/"最新XX"）
-- search_knowledge: 知识库查询（"什么是XX"/"XX的定义"）
-- format_response: 格式化输出
+{tool_list}
 
 输出格式（严格 JSON，不含 markdown）:
-{"need_vision": false, "need_tool": true, "tool_name": "get_time", "reasoning": "用户问时间，需要调用 get_time 工具"}
+{{"need_vision": false, "need_tool": true, "tool_name": "<工具名>", "tool_params": {{}}, "reasoning": "..."}}
+
+tool_params 示例:
+- calculator: {{"expression": "2+3*4"}}
+- weather: {{"city": "北京"}}
+- web_search: {{"query": "搜索关键词"}}
+- get_time: {{}}
 
 示例:
 Q: "现在几点了"
-A: {"need_vision": false, "need_tool": true, "tool_name": "get_time", "reasoning": "用户询问时间"}
+A: {{"need_vision": false, "need_tool": true, "tool_name": "get_time", "tool_params": {{}}, "reasoning": "用户询问时间"}}
 
 Q: "桌上有什么"
-A: {"need_vision": true, "need_tool": false, "tool_name": null, "reasoning": "需要查看桌面画面"}
+A: {{"need_vision": true, "need_tool": false, "tool_name": null, "tool_params": {{}}, "reasoning": "需要查看桌面画面"}}
 
 Q: "你好"
-A: {"need_vision": false, "need_tool": false, "tool_name": null, "reasoning": "日常问候，直接回答"}
+A: {{"need_vision": false, "need_tool": false, "tool_name": null, "tool_params": {{}}, "reasoning": "日常问候，直接回答"}}
 
-Q: "搜索Python教程"
-A: {"need_vision": false, "need_tool": true, "tool_name": "search_web", "reasoning": "需要联网搜索"}
+Q: "北京天气怎么样"
+A: {{"need_vision": false, "need_tool": true, "tool_name": "weather", "tool_params": {{"city": "北京"}}, "reasoning": "查询北京天气"}}
 
-Q: "我手里拿的是什么"
-A: {"need_vision": true, "need_tool": false, "tool_name": null, "reasoning": "需要摄像头识别手中物体"}
+Q: "计算 15 * 8 + 3"
+A: {{"need_vision": false, "need_tool": true, "tool_name": "calculator", "tool_params": {{"expression": "15*8+3"}}, "reasoning": "需要计算数学表达式"}}
 """
 
 
@@ -257,7 +266,7 @@ def planner_node(state: AgentState) -> Dict[str, Any]:
     )
 
     messages = [
-        SystemMessage(content=PLANNER_SYSTEM_PROMPT),
+        SystemMessage(content=_build_planner_prompt()),
         HumanMessage(content=f"Q: {user_input}"),
     ]
 
@@ -346,41 +355,81 @@ def _planner_fallback(user_input: str, scratchpad: list, error: str) -> Dict[str
 
 
 # ============================================================
-# 4. tool_node — 工具执行
+# 4. tool_node — 动态工具执行
 # ============================================================
 
 def tool_node(state: AgentState) -> Dict[str, Any]:
     """
-    【工具节点】执行 planner 指定的工具。
+    【工具节点】通过 ToolRegistry 动态执行工具。
 
-    优先使用 planner_node 的 Structured Output 中的 tool_name，
-    直接调用对应工具函数，避免二次 LLM 调用。
+    流程:
+    1. 从 planner 的 _tool_name 获取工具名
+    2. 从 planner 的 _plan_json 获取参数（若工具需要）
+    3. ToolRegistry.execute_tool(name, **params) 动态调用
+    4. 返回 tool_result
 
-    输入依赖: state["user_input"], state["_tool_name"]
+    支持动态参数映射: query → expression / text → expression
+
+    输入依赖: state["user_input"], state["_tool_name"], state["_plan_json"]
     输出字段: tool_result
     """
-    from app.agent.tools import TOOL_REGISTRY
+    from app.agent.tools import tool_registry
 
     user_input = state.get("user_input", "")
     tool_name = state.get("_tool_name", "")
+    plan_json = state.get("_plan_json", {})
     scratchpad = state.get("agent_scratchpad", [])
 
-    # 优先使用 planner 指定的工具
-    if tool_name and tool_name in TOOL_REGISTRY:
-        tool_fn = TOOL_REGISTRY[tool_name]
-        try:
-            result = tool_fn.invoke({"query": user_input} if tool_name in ("search_web", "search_knowledge") else {})
-            tool_result = str(result)
-            print(f"[tool_node] ✅ {tool_name}: {tool_result[:100]}")
-        except Exception as e:
-            tool_result = f"工具 {tool_name} 执行失败: {e}"
-            print(f"[tool_node] ❌ {e}")
-    else:
-        # 降级：无工具名或工具不存在
-        tool_result = f"无可用工具 (planner 未指定 tool_name)"
-        print(f"[tool_node] ⚠️ 无 tool_name，跳过执行")
+    if not tool_name:
+        scratchpad.append("[tool] ⚠️ planner 未指定工具名，跳过")
+        return {
+            "tool_result": "无需执行工具",
+            "agent_scratchpad": scratchpad,
+        }
 
-    scratchpad.append(f"[tool] {tool_name}: {tool_result[:80]}")
+    # 检查工具是否存在
+    if not tool_registry.has_tool(tool_name):
+        available = tool_registry.list_tools()
+        msg = f"工具 '{tool_name}' 未注册。可用: {available}"
+        scratchpad.append(f"[tool] ❌ {msg}")
+        return {
+            "tool_result": msg,
+            "agent_scratchpad": scratchpad,
+        }
+
+    # 从 plan_json 提取参数
+    params = plan_json.get("tool_params", {})
+
+    # 自动注入 user_input 作为通用参数
+    if not params and user_input:
+        # 提取工具所需参数名
+        tool_def = tool_registry.get_tool(tool_name)
+        if tool_def and tool_def.params:
+            first_param = tool_def.params[0].name
+            params[first_param] = user_input
+
+    # 补上常用参数别名
+    if "query" not in params and user_input:
+        params.setdefault("query", user_input)
+    if "expression" not in params and user_input:
+        params.setdefault("expression", user_input)
+    if "city" not in params and user_input:
+        # 尝试从 user_input 中提取城市名
+        import re
+        city_match = re.search(r'(北京|上海|广州|深圳|杭州|成都|南京|武汉|西安|重庆|Tokyo|London|New York)', user_input)
+        if city_match:
+            params["city"] = city_match.group(1)
+
+    # 动态执行
+    try:
+        result = tool_registry.execute_tool(tool_name, **params)
+        tool_result = str(result)
+        print(f"[tool_node] ✅ {tool_name}({params}) → {tool_result[:100]}")
+        scratchpad.append(f"[tool] ✅ {tool_name}: {tool_result[:80]}")
+    except Exception as e:
+        tool_result = f"工具执行异常: {str(e)}"
+        print(f"[tool_node] ❌ {tool_name}: {e}")
+        scratchpad.append(f"[tool] ❌ {tool_name}: {str(e)[:80]}")
 
     return {
         "tool_result": tool_result,
