@@ -1,0 +1,56 @@
+# ====================
+#  Python
+# ====================
+__pycache__/
+*.py[cod]
+*.pyo
+*.egg-info/
+dist/
+build/
+*.egg
+.venv/
+venv/
+env/
+
+# ====================
+#  Node / Frontend
+# ====================
+node_modules/
+frontend/dist/
+*.tsbuildinfo
+
+# ====================
+#  Environment
+# ====================
+.env
+.env.local
+.env.*.local
+
+# ====================
+#  IDE
+# ====================
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# ====================
+#  OS
+# ====================
+.DS_Store
+Thumbs.db
+
+# ====================
+#  Logs
+# ====================
+*.log
+logs/
+
+# ====================
+#  Audio temp files
+# ====================
+*.wav
+*.mp3
+*.ogg
+!docs/**/*.wav
