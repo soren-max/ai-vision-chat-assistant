@@ -32,10 +32,10 @@ export default function App() {
     setMessages(prev => [...prev, msg]);
   }, []);
 
-  // Build vision data from current scene
+  // Build vision data from current scene (clean names, no confidence in API call)
   const currentScene = MOCK_SCENES[sceneIdx] || {};
   const visionData = {
-    objects: Object.values(currentScene).map(o => `${o.label}(${Math.round(o.confidence*100)}%)`),
+    objects: Object.values(currentScene).map(o => o.label),
     scene: 'office',
     timestamp: Date.now(),
   };
