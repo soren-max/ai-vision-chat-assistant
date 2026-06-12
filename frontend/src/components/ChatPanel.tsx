@@ -312,8 +312,6 @@ function ChatPanel({ externalMessage, detectedObjects }: ChatPanelProps = {}) {
       role: externalMessage.role,
       content: externalMessage.content,
       timestamp: Date.now(),
-      toolName: externalMessage.toolName,
-      thinkingLabel: externalMessage.thinkingLabel,
     };
     setMessages(p => [...p, msg]);
 
