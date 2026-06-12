@@ -5,11 +5,14 @@ LangGraph 节点定义
 接收 AgentState 字典，返回更新后的状态字段。
 """
 
+import json
+from datetime import datetime
 from typing import Dict, Any
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI
 from app.config import settings
 from app.agent.state import AgentState
+from app.services.scene_memory_store import scene_memory_store
 
 
 # ============================================================
@@ -64,40 +67,88 @@ def vision_node(state: AgentState) -> Dict[str, Any]:
 
 
 # ============================================================
-# 2. memory_node — 场景记忆管理
+# 2. memory_node — 场景长期记忆管理（亮点功能）
 # ============================================================
 
 def memory_node(state: AgentState) -> Dict[str, Any]:
     """
-    【记忆节点】管理场景记忆上下文。
+    【记忆节点】视觉场景长期记忆管理。
 
-    保留最近的场景描述，维持对话的视觉连续性。
-    最多保留 5 条历史场景记录，超过时淘汰最早的记录。
+    核心职责:
+    1. 读取当前视觉分析结果 → 解析并存储到 SceneMemoryStore
+    2. 读取历史场景 → 构建结构化 SceneContext
+    3. 压缩历史内容 → 聚合重要对象，提取场景趋势
+    4. 构造 Scene Context → 供 reasoning_node / response_node 使用
 
-    输入依赖: state["vision_context"], state["scene_memory"]
-    输出字段: scene_memory
+    存储结构:
+    {
+      "objects": ["laptop", "cup", "book"],
+      "summary": "桌面办公场景",
+      "scene_type": "office",
+      "people_count": 1
+    }
+
+    输入依赖: state["vision_context"], state["session_id"]
+    输出字段: scene_memory (结构化上下文), agent_scratchpad
     """
-    # 获取当前场景描述
+    session_id = state.get("session_id", "default")
     current_vision = state.get("vision_context", "")
-    # 获取历史记忆
-    scene_memory = state.get("scene_memory", [])
+    scratchpad = state.get("agent_scratchpad", [])
 
-    if current_vision and current_vision != "视觉分析暂不可用":
-        # 添加时间戳，便于追溯
-        from datetime import datetime
-        timestamp = datetime.now().strftime("%H:%M:%S")
-        memory_entry = f"[{timestamp}] {current_vision}"
+    # ---- 1. 解析并保存当前场景 ----
+    if current_vision and "暂不可用" not in current_vision and "未检测到" not in current_vision:
+        record = scene_memory_store.save(session_id, current_vision)
 
-        # 追加到记忆列表
-        scene_memory.append(memory_entry)
+        scratchpad.append(
+            f"[memory] 存储场景 | 类型={record.scene_type} | "
+            f"物体={len(record.key_objects)}个 | "
+            f"人物={record.people_count} | "
+            f"变化={record.change_from_prev or '无'}"
+        )
 
-        # 保留最近 5 条记录
-        if len(scene_memory) > 5:
-            scene_memory = scene_memory[-5:]
+        print(
+            f"[memory_node] ✅ 场景保存 | 类型: {record.scene_type} | "
+            f"物体: {record.key_objects} | "
+            f"当前共 {scene_memory_store.length(session_id)} 条记录"
+        )
 
-        print(f"[memory_node] 记忆更新: 当前共 {len(scene_memory)} 条场景记录")
+    # ---- 2. 构造 Scene Context ----
+    ctx = scene_memory_store.build_scene_context(session_id)
 
-    return {"scene_memory": scene_memory}
+    # ---- 3. 获取重要物体统计 ----
+    object_counts = scene_memory_store.get_object_counts(session_id)
+    top_objects = list(object_counts.keys())[:5] if object_counts else []
+
+    # ---- 4. 构建结构化的 scene_memory ----
+    scene_memory_entry = {
+        "current": ctx.current_scene,
+        "recent_history": ctx.recent_history,
+        "important_objects": top_objects,
+        "all_objects": ctx.all_objects[:10],
+        "scene_trend": ctx.scene_type_trend,
+        "has_changed": ctx.has_changed,
+        "object_frequencies": dict(list(object_counts.items())[:8]),
+        "total_scenes": scene_memory_store.length(session_id),
+        "compressed_context": ctx.compressed_context,
+    }
+
+    scratchpad.append(
+        f"[memory] SceneContext 构建完成 | "
+        f"重要物体={top_objects} | "
+        f"趋势={ctx.scene_type_trend}"
+    )
+
+    print(
+        f"[memory_node] 📦 记忆总结 | "
+        f"总场景={scene_memory_store.length(session_id)} | "
+        f"重要物体: {top_objects} | "
+        f"趋势: {ctx.scene_type_trend}"
+    )
+
+    return {
+        "scene_memory": [json.dumps(scene_memory_entry, ensure_ascii=False)],
+        "agent_scratchpad": scratchpad,
+    }
 
 
 # ============================================================
@@ -227,8 +278,14 @@ def reasoning_node(state: AgentState) -> Dict[str, Any]:
     tool_result = state.get("tool_result", "")
     scratchpad = state.get("agent_scratchpad", [])
 
-    # 构建推理所需的上下文
-    memory_context = "\n".join(scene_memory[-3:]) if scene_memory else "无历史场景记录"
+    # 构建推理所需的上下文（从结构化 scene_memory 中提取）
+    memory_context = "无历史场景记录"
+    if scene_memory and len(scene_memory) > 0:
+        try:
+            parsed = json.loads(scene_memory[0])
+            memory_context = parsed.get("compressed_context", "无历史场景记录")
+        except (json.JSONDecodeError, KeyError):
+            memory_context = str(scene_memory[0])[:500]
 
     # 使用 DeepSeek 进行推理
     llm = ChatOpenAI(
