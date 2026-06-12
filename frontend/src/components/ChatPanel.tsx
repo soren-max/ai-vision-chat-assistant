@@ -11,6 +11,7 @@
  */
 
 import { useRef, useEffect, useState, useCallback } from 'react';
+import { toast } from './Toast';
 import ReactMarkdown from 'react-markdown';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
@@ -351,6 +352,7 @@ function ChatPanel() {
     setMessages(p => [...p, userMsg]);
     setInput('');
     setIsTyping(true);
+    toast.info('Agent processing...');
 
     // Simulate thinking + tool + response
     setTimeout(() => {
@@ -401,6 +403,7 @@ The scene type is \`office\` with warm indoor lighting. No people detected.
 Is there anything specific you'd like me to focus on?`,
         timestamp: Date.now(),
       }]);
+      toast.success('Response ready');
     }, 2500);
   }, [input]);
 
