@@ -2,43 +2,91 @@
  * App Shell — ChatGPT-style Vision Agent
  */
 
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback } from 'react';
 import ChatWindow from './components/ChatWindow';
 import ChatInput from './components/ChatInput';
 import CameraPreview from './components/CameraPreview';
 import VisionDrawer from './components/VisionDrawer';
 import AgentDrawer from './components/AgentDrawer';
-import { MOCK_SCENES } from './components/CameraPanel';
 import type { Message } from './types/chat';
+
+export interface VisionObject {
+  name: string;
+  confidence: number;
+  position?: string;
+}
+
+export interface VisionContext {
+  scene: string;
+  summary: string;
+  objects: VisionObject[];
+  people: Array<Record<string, unknown>>;
+  screen_content: string;
+  risk_content: string[];
+  updatedAt: number | null;
+  source: 'camera' | 'idle' | 'error';
+}
+
+const EMPTY_VISION: VisionContext = {
+  scene: '',
+  summary: '',
+  objects: [],
+  people: [],
+  screen_content: '',
+  risk_content: [],
+  updatedAt: null,
+  source: 'idle',
+};
+
+function buildVisionContextText(vision: VisionContext): string {
+  if (vision.source !== 'camera' || !vision.updatedAt) {
+    return '摄像头尚未提供可用画面。';
+  }
+
+  const objectText = vision.objects.length
+    ? vision.objects
+        .map((obj) => {
+          const confidence = Math.round(obj.confidence * 100);
+          const position = obj.position ? `，位置：${obj.position}` : '';
+          return `${obj.name}（${confidence}%${position}）`;
+        })
+        .join('；')
+    : '暂未识别到明确物体';
+
+  return [
+    vision.summary ? `摘要：${vision.summary}` : '',
+    vision.scene ? `场景：${vision.scene}` : '',
+    `物体：${objectText}`,
+    vision.screen_content ? `屏幕内容：${vision.screen_content}` : '',
+    vision.risk_content.length ? `风险提示：${vision.risk_content.join('；')}` : '',
+  ].filter(Boolean).join('\n');
+}
 
 export default function App() {
   const [messages, setMessages] = useState<Message[]>([{
     id: 'welcome',
     role: 'assistant',
-    content: '👋 你好！我是 Vision Agent。打开摄像头后，我可以看到你的画面并回答你的问题。',
+    content: '你好，我是 Vision Agent。打开摄像头和麦克风后，我会结合实时画面与语音问题回答你。',
     timestamp: Date.now(),
   }]);
   const [visionOpen, setVisionOpen] = useState(false);
   const [agentOpen, setAgentOpen] = useState(false);
-  const [sceneIdx, setSceneIdx] = useState(0);
-
-  // Cycle mock scenes
-  useEffect(() => {
-    const t = setInterval(() => setSceneIdx(i => (i + 1) % MOCK_SCENES.length), 4000);
-    return () => clearInterval(t);
-  }, []);
+  const [vision, setVision] = useState<VisionContext>(EMPTY_VISION);
+  const [agentPhase, setAgentPhase] = useState('idle');
 
   const addMessage = useCallback((msg: Message) => {
     setMessages(prev => [...prev, msg]);
   }, []);
 
-  // Build vision data from current scene (clean names, no confidence in API call)
-  const currentScene = MOCK_SCENES[sceneIdx] || {};
   const visionData = {
-    objects: Object.values(currentScene).map(o => o.label),
-    scene: 'office',
-    timestamp: Date.now(),
+    objects: vision.objects.map(o => o.name),
+    scene: vision.scene,
+    summary: vision.summary,
+    screen_content: vision.screen_content,
+    risk_content: vision.risk_content,
+    timestamp: vision.updatedAt,
   };
+  const visionContext = buildVisionContextText(vision);
 
   return (
     <div className="h-screen flex flex-col bg-white dark:bg-[#0f172a] text-gray-900 dark:text-gray-100 overflow-hidden">
@@ -63,18 +111,23 @@ export default function App() {
       <div className="flex-1 flex overflow-hidden relative">
         <div className="flex-1 flex flex-col min-w-0">
           <ChatWindow messages={messages} />
-          <ChatInput onMessage={addMessage} visionData={visionData} />
+          <ChatInput
+            onMessage={addMessage}
+            visionData={visionData}
+            visionContext={visionContext}
+            onAgentPhase={setAgentPhase}
+          />
         </div>
         {(visionOpen || agentOpen) && (
           <aside className="w-80 shrink-0 border-l border-gray-200 dark:border-gray-800 overflow-y-auto bg-gray-50 dark:bg-[#1e293b]">
-            {visionOpen && <VisionDrawer />}
-            {agentOpen && <AgentDrawer />}
+            {visionOpen && <VisionDrawer vision={vision} />}
+            {agentOpen && <AgentDrawer phase={agentPhase} vision={vision} />}
           </aside>
         )}
       </div>
 
       <div className="fixed top-14 right-5 z-40">
-        <CameraPreview />
+        <CameraPreview onVisionUpdate={setVision} />
       </div>
     </div>
   );
