@@ -14,6 +14,7 @@
 import { useEffect, useRef, useCallback, useState } from 'react';
 import { useMediaDevice } from '../hooks/useMediaDevice';
 import { apiClient } from '../services';
+import { toast } from './Toast';
 
 const FRAME_INTERVAL_MS = 3000;
 
@@ -39,7 +40,7 @@ type DetectedObjects = Record<string, DetectedObject>;
 // Mock Detection Data (simulates vision analysis results)
 // ============================================================
 
-const MOCK_SCENES: DetectedObjects[] = [
+export const MOCK_SCENES: DetectedObjects[] = [
   // Scene 1: Office Desk
   {
     laptop:    { id:'laptop',    label:'Laptop',       confidence:0.97, x:0.30, y:0.35, w:0.40, h:0.30, color:'#3b82f6', status:'stable' },
@@ -209,9 +210,20 @@ function CameraPanel() {
   const isStarting = cameraStatus === 'starting';
 
   const handleToggle = useCallback(() => {
-    if (isActive) stopCamera();
-    else startCamera();
+    if (isActive) {
+      stopCamera();
+      toast.info('Camera stopped');
+    } else {
+      startCamera();
+      toast.info('Camera starting...');
+    }
   }, [isActive, startCamera, stopCamera]);
+
+  // Toast on status changes
+  useEffect(() => {
+    if (cameraStatus === 'active') toast.success('Camera active — analyzing scene');
+    if (cameraStatus === 'error' && errorMessage) toast.error(errorMessage);
+  }, [cameraStatus, errorMessage]);
 
   const objList = Object.values(objects);
   const statusDot = isActive ? 'dot-green' : cameraStatus === 'error' ? 'dot-red' : 'dot-purple';

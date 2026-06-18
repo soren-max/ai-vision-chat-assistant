@@ -479,7 +479,10 @@ export function useAudioRecorder(options: {
           await onUpload(wavBlob);
           console.log(`[useAudioRecorder] 上传完成 (${wavBlob.size} bytes)`);
         } catch (err) {
+          const msg = err instanceof Error ? err.message : '上传失败';
           console.error('[useAudioRecorder] 上传失败:', err);
+          setError(`音频上传或识别失败: ${msg}`);
+          return;
         }
       }
 

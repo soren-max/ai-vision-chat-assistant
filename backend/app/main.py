@@ -35,7 +35,7 @@ async def startup():
     print(f"[{settings.APP_NAME} v{settings.APP_VERSION}] 启动中...")
     print(f"  LangGraph Agent: 已就绪")
     print(f"  大模型: {settings.DEEPSEEK_MODEL}")
-    print(f"  STT 模型: {settings.STT_MODEL} (语言: {settings.STT_LANGUAGE})")
+    print(f"  STT 引擎: {settings.STT_ENGINE} (语言: {settings.STT_LANGUAGE})")
     print(f"  Vision 分析: {settings.VISION_MAX_DIMENSION}px, JPEG Q={settings.VISION_JPEG_QUALITY}")
 
     # 检查 API Key 是否已配置
@@ -80,7 +80,7 @@ async def app_info():
         "version": settings.APP_VERSION,
         "architecture": "LangGraph StateGraph",
         "deepseek_model": settings.DEEPSEEK_MODEL,
-        "stt_model": settings.STT_MODEL,
+        "stt_engine": settings.STT_ENGINE,
         "stt_language": settings.STT_LANGUAGE,
         "stt_ready": stt_service.is_ready,
         "tts_engine": settings.TTS_ENGINE,
@@ -89,7 +89,7 @@ async def app_info():
 
 # ========== 注册业务路由 ==========
 
-from app.routers import chat, stt, vision, multimodal, tts, optimize, code_assistant, watch
+from app.routers import chat, stt, vision, multimodal, tts, optimize, code_assistant, watch, simple_chat
 
 app.include_router(chat.router)
 app.include_router(stt.router)
@@ -99,3 +99,4 @@ app.include_router(tts.router)
 app.include_router(optimize.router)
 app.include_router(code_assistant.router)
 app.include_router(watch.router)
+app.include_router(simple_chat.router)

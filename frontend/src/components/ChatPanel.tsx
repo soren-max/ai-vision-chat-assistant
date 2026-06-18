@@ -11,6 +11,7 @@
  */
 
 import { useRef, useEffect, useState, useCallback } from 'react';
+import { toast } from './Toast';
 import ReactMarkdown from 'react-markdown';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
@@ -42,59 +43,18 @@ interface Message {
 
 const DEMO_MESSAGES: Message[] = [
   {
-    id: '1', role: 'assistant', content:
-`Hello! I'm your Vision Agent Assistant. I can see what's in your camera, analyze scenes, and answer questions about what I observe.
+    id: 'welcome',
+    role: 'assistant',
+    content:
+`👋 Hello! I'm your Vision Agent Assistant.
 
-Try asking me:
-- "What do you see?"
-- "Describe the objects on my desk"
-- "Is there anyone in the room?"`,
-    timestamp: Date.now() - 120000,
-  },
-  {
-    id: '2', role: 'user', content: 'What objects are on my desk?',
-    timestamp: Date.now() - 110000,
-  },
-  {
-    id: '3', role: 'thinking', content:
-`1. Parsing user intent: object identification request
-2. Checking vision_context: camera active ✓
-3. Routing: planner → vision_node
-4. Extracting objects from scene analysis`,
-    thinkingLabel: 'Analyzing scene',
-    timestamp: Date.now() - 105000,
-  },
-  {
-    id: '4', role: 'tool_call', content:
-`get_time()
-→ "2026-06-12 14:30:00"`,
-    toolName: 'get_time',
-    toolLatency: 234,
-    timestamp: Date.now() - 103000,
-  },
-  {
-    id: '5', role: 'assistant', content:
-`Based on what I can see, your desk has:
+I can **see** what's in your camera and **hear** what you say. 
 
-- **Laptop** (confidence: 97%) — positioned in the center
-- **Coffee Cup** (89%) — on the right side
-- **Mechanical Keyboard** (94%) — in front of the laptop
-- **Phone** (82%) — to the far right
-
-The scene appears to be a typical \`office\` workspace. Here's the scene classification breakdown:
-
-\`\`\`python
-scene_analysis = {
-    "type": "office",
-    "objects": ["laptop", "coffee_cup", "keyboard", "phone"],
-    "lighting": "warm_indoor",
-    "dominant_color": "wood_brown",
-    "people_detected": 0
-}
-\`\`\`
-
-Would you like me to focus on any specific object?`,
-    timestamp: Date.now() - 100000,
+**Try:**
+- Click 🎤 to record a question
+- Type in the input below
+- Ask about objects in the scene`,
+    timestamp: Date.now(),
   },
 ];
 
@@ -328,7 +288,14 @@ function MessageBubble({ message }: { message: Message }) {
 // Main Component
 // ============================================================
 
-function ChatPanel() {
+interface DetObj { id: string; label: string; confidence: number }
+
+interface ChatPanelProps {
+  externalMessage?: { role: MessageRole; content: string } | null;
+  detectedObjects?: Record<string, DetObj>;
+}
+
+function ChatPanel({ externalMessage, detectedObjects }: ChatPanelProps = {}) {
   const [messages, setMessages] = useState<Message[]>(DEMO_MESSAGES);
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
@@ -337,6 +304,60 @@ function ChatPanel() {
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
   }, [messages, isTyping]);
+
+  // Handle external messages (from VoiceRecorder)
+  useEffect(() => {
+    if (!externalMessage) return;
+    const msg: Message = {
+      id: `ext-${Date.now()}`,
+      role: externalMessage.role,
+      content: externalMessage.content,
+      timestamp: Date.now(),
+    };
+    setMessages(p => [...p, msg]);
+
+    // Simulate AI response after voice input (full pipeline)
+    if (externalMessage.role === 'user') {
+      setIsTyping(true);
+      setTimeout(() => {
+        setMessages(p => [...p, {
+          id: `think-${Date.now()}`,
+          role: 'thinking',
+          content: `1. STT: "${externalMessage.content}"\n2. Route: planner → vision_node\n3. Analyzing camera frame`,
+          thinkingLabel: 'Processing voice',
+          timestamp: Date.now(),
+        }]);
+      }, 600);
+
+      const objs = detectedObjects ? Object.values(detectedObjects) : [];
+      const objNames = objs.map(o => o.label).join(', ');
+      const objListStr = objs.map(o => `- **${o.label}** — ${Math.round(o.confidence*100)}%`).join('\n');
+
+      setTimeout(() => {
+        setMessages(p => [...p, {
+          id: `tool-${Date.now()}`,
+          role: 'tool_call',
+          content: `vision_analysis()\n→ objects: ${objNames}\n→ count: ${objs.length}`,
+          toolName: 'vision_analysis',
+          toolLatency: 280,
+          timestamp: Date.now(),
+        }]);
+      }, 1400);
+
+      setTimeout(() => {
+        setIsTyping(false);
+        const response = objs.length > 0
+          ? `Here's what I see:\n\n${objListStr}`
+          : `Camera active — no objects detected yet.`;
+        setMessages(p => [...p, {
+          id: `ai-${Date.now()}`,
+          role: 'assistant',
+          content: response,
+          timestamp: Date.now(),
+        }]);
+      }, 2500);
+    }
+  }, [externalMessage]);
 
   const send = useCallback(() => {
     const text = input.trim();
@@ -351,23 +372,30 @@ function ChatPanel() {
     setMessages(p => [...p, userMsg]);
     setInput('');
     setIsTyping(true);
+    toast.info('Agent processing...');
 
-    // Simulate thinking + tool + response
+    // Simulate full agent pipeline
     setTimeout(() => {
       setMessages(p => [...p, {
         id: `think-${Date.now()}`,
         role: 'thinking',
-        content: `1. Parsing: "${text}"\n2. planner_node → vision_node\n3. Analyzing camera frame\n4. Extracting objects from scene`,
+        content: `1. Intent: "${text}"\n2. Route: planner → vision_node\n3. Analyzing camera frame\n4. Detecting objects in scene`,
         thinkingLabel: 'Processing',
         timestamp: Date.now(),
       }]);
     }, 800);
 
+    // Build response from actual detected objects
+    const objs = detectedObjects ? Object.values(detectedObjects) : [];
+    const objListStr = objs.map(o => `- **${o.label}** (${Math.round(o.confidence*100)}%)`).join('\n');
+    const objNames = objs.map(o => o.label).join(', ');
+    const jsonStr = JSON.stringify({ objects: objs.map(o => o.label) });
+
     setTimeout(() => {
       setMessages(p => [...p, {
         id: `tool-${Date.now()}`,
         role: 'tool_call',
-        content: `vision_analysis()\n→ detected 4 objects: laptop, cup, keyboard, phone`,
+        content: `vision_analysis()\n→ objects: ${objNames}\n→ count: ${objs.length}`,
         toolName: 'vision_analysis',
         toolLatency: 312,
         timestamp: Date.now(),
@@ -376,31 +404,16 @@ function ChatPanel() {
 
     setTimeout(() => {
       setIsTyping(false);
+      const response = objs.length > 0
+        ? `I can see:\n\n${objListStr}\n\n\`\`\`json\n${jsonStr}\n\`\`\`\n\nAsk me about any of these!`
+        : `Camera is active but no objects detected yet. Try pointing at something!`;
       setMessages(p => [...p, {
         id: `ai-${Date.now()}`,
         role: 'assistant',
-        content:
-`I can see your workspace clearly. Here's what I detected:
-
-- **Laptop** — positioned at center (97% confidence)
-- **Coffee Cup** — on the right (89% confidence)  
-- **Mechanical Keyboard** — in front of laptop (94% confidence)
-- **Phone** — far right corner (82% confidence)
-
-The scene type is \`office\` with warm indoor lighting. No people detected.
-
-\`\`\`json
-{
-  "scene": "office",
-  "objects": ["laptop", "coffee_cup", "keyboard", "phone"],
-  "confidence_avg": 0.905,
-  "people": 0
-}
-\`\`\`
-
-Is there anything specific you'd like me to focus on?`,
+        content: response,
         timestamp: Date.now(),
       }]);
+      toast.success('Response ready');
     }, 2500);
   }, [input]);
 
@@ -409,7 +422,11 @@ Is there anything specific you'd like me to focus on?`,
   };
 
   // Clear demo
-  const handleClear = () => setMessages([]);
+  const handleClear = () => setMessages([{
+    id: 'welcome', role: 'assistant' as const,
+    content: 'Chat cleared. Start a new conversation!',
+    timestamp: Date.now(),
+  }]);
 
   return (
     <div className="flex-1 flex flex-col min-h-0">
