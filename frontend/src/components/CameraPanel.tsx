@@ -14,6 +14,7 @@
 import { useEffect, useRef, useCallback, useState } from 'react';
 import { useMediaDevice } from '../hooks/useMediaDevice';
 import { apiClient } from '../services';
+import { toast } from './Toast';
 
 const FRAME_INTERVAL_MS = 3000;
 
@@ -209,9 +210,20 @@ function CameraPanel() {
   const isStarting = cameraStatus === 'starting';
 
   const handleToggle = useCallback(() => {
-    if (isActive) stopCamera();
-    else startCamera();
+    if (isActive) {
+      stopCamera();
+      toast.info('Camera stopped');
+    } else {
+      startCamera();
+      toast.info('Camera starting...');
+    }
   }, [isActive, startCamera, stopCamera]);
+
+  // Toast on status changes
+  useEffect(() => {
+    if (cameraStatus === 'active') toast.success('Camera active — analyzing scene');
+    if (cameraStatus === 'error' && errorMessage) toast.error(errorMessage);
+  }, [cameraStatus, errorMessage]);
 
   const objList = Object.values(objects);
   const statusDot = isActive ? 'dot-green' : cameraStatus === 'error' ? 'dot-red' : 'dot-purple';

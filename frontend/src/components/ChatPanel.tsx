@@ -11,6 +11,7 @@
  */
 
 import { useRef, useEffect, useState, useCallback } from 'react';
+import { toast } from './Toast';
 import ReactMarkdown from 'react-markdown';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
@@ -371,6 +372,7 @@ function ChatPanel({ externalMessage, detectedObjects }: ChatPanelProps = {}) {
     setMessages(p => [...p, userMsg]);
     setInput('');
     setIsTyping(true);
+    toast.info('Agent processing...');
 
     // Simulate full agent pipeline
     setTimeout(() => {
@@ -411,6 +413,7 @@ function ChatPanel({ externalMessage, detectedObjects }: ChatPanelProps = {}) {
         content: response,
         timestamp: Date.now(),
       }]);
+      toast.success('Response ready');
     }, 2500);
   }, [input]);
 
